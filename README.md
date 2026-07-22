@@ -1,64 +1,86 @@
 # Feng Zoo Application User Guide
 
-## Overview
-This project is a browser-based web application for a zoo operations experience. The interface is branded as "Zoo AI" and presents a polished, dashboard-style experience for viewing operational information.
+## 1. Overview
+The Feng Zoo Application is a browser-based web application created to provide a modern and interactive experience for a zoo operations concept. The interface is branded as "Zoo AI" and presents a polished dashboard-style layout for viewing operational information.
 
-## What This App Does
-The current version is a front-end application that:
-- opens as a standalone web page from the browser
-- shows a branded login and app experience
-- provides a modern UI layout for an operational dashboard concept
+## 2. Definition of the Application
+The application is a front-end web project that runs directly in a browser. It is designed to display a professional user interface and provide a visual experience for users without requiring any backend system or database connection.
 
-> This repository currently contains a static web page, so there is no separate backend or database setup.
+## 3. Steps to Run the Application
+### Step 1: Open the Project Folder
+Definition: This step means locating the project directory where the application files are stored.
 
-## How to Run the App
-### Option 1: Open directly in a browser
-1. Open the project folder.
-2. Double-click the file named index.html.
-3. The app should open in your default browser.
+1. Open the folder containing the project files.
+2. Ensure that the file named index.html is present in the folder.
 
-### Option 2: Run a local web server
-If you want a more reliable local preview, use a simple static server:
+### Step 2: Launch the Application
+Definition: This step means opening the application in a browser so that the interface can be viewed.
+
+1. Double-click the file named index.html.
+2. The application should open automatically in your default browser.
+
+### Step 3: Use a Local Web Server (Optional)
+Definition: This step means running the application through a local server for a more reliable preview.
+
+1. Open the project folder in a terminal.
+2. Run the following command:
 
 ```bash
 python -m http.server 8000
 ```
 
-Then open:
+3. Open the following address in your browser:
 
 ```text
 http://localhost:8000
 ```
 
-## How to Use the App
-1. Open the app in your browser.
-2. Review the landing screen and interface.
-3. Use the navigation and dashboard areas as presented by the UI.
-4. If the page does not load correctly, refresh the browser or reopen the file.
+## 4. Steps to Use the Application
+### Step 1: Open the App
+Definition: This step means starting the application in the browser.
 
-## Expected Behavior
-- The app should load as a complete webpage without needing a build step.
-- The layout is designed for a polished, modern experience.
-- The content is bundled into a single HTML file, so it is easy to share and run locally.
+1. Open the application in your browser.
+2. Wait for the interface to load completely.
 
-## Troubleshooting
-### The page does not open
-- Make sure you opened the correct file: index.html.
-- Try refreshing the browser.
-- If using a local server, confirm the server is running and the URL is correct.
+### Step 2: View the Interface
+Definition: This step means reviewing the main screen and its visual layout.
 
-### The app looks broken or incomplete
-- Ensure the browser is up to date.
-- Check that the file was not moved or renamed.
-- If you changed files, refresh the browser cache.
+1. Observe the landing page and dashboard-style design.
+2. Explore the available sections shown on the screen.
 
-## Project Structure
-- index.html — main application file
-- README.md — this user guide
+### Step 3: Refresh If Needed
+Definition: This step means reloading the page if the content does not appear correctly.
 
-## Next Steps
-If you want to expand this project further, possible improvements include:
-- adding real data and charts
-- connecting the UI to an API or database
-- creating login and user roles
-- adding more zoo-specific modules such as animal care, staff schedules, or visitor insights
+1. If the page does not load properly, refresh the browser.
+2. If necessary, reopen the file or restart the local server.
+
+## 5. Expected Behavior
+- The application should load as a complete web page.
+- The layout should appear modern and professional.
+- The app should work without requiring a build process.
+
+## 6. Troubleshooting
+### Problem: The Page Does Not Open
+Definition: This means the application is not loading correctly in the browser.
+
+1. Confirm that you opened the correct file: index.html.
+2. Refresh the browser.
+3. If using a local server, check that the server is running.
+
+### Problem: The App Appears Broken or Incomplete
+Definition: This means the interface is not displaying properly.
+
+1. Ensure that your browser is up to date.
+2. Check whether the file has been moved or renamed.
+3. Refresh the page to clear cached content.
+
+## 7. Project Structure
+- index.html — Main application file
+- README.md — User guide documentation
+
+## 8. Future Improvements
+The application can be improved in the future by adding:
+- real data and charts
+- API or database integration
+- login and user role functionality
+- zoo-specific modules such as animal care, staff management, and visitor reports
