@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code} in %{time_total}s\\\\n\" http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' http://localhost:3001__TRACKED_VAR__)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(where docker.exe)",
+      "Bash(where.exe docker *)",
+      "Bash(psql --version)",
+      "Bash(pg_isready --version)",
+      "PowerShell($timeout = \\(Get-Date\\).AddSeconds\\(30\\); do { Start-Sleep -Seconds 2; $s = \\(docker inspect --format '{{.State.Health.Status}}' zoo_ai_postgres\\); Write-Host \"health: $s\" } until \\($s -eq 'healthy' -or \\(Get-Date\\) -gt $timeout\\); pnpm prisma migrate deploy)"
+    ]
+  }
+}

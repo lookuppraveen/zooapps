@@ -1,0 +1,386 @@
+// Zoo AI Operational Intelligence — data model
+// Postgres + pgvector; see IMPLEMENTATION_PLAN.md §3
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Under D1 (integrate via API), embeddings and vector search live inside OIP;
+// we do not need pgvector locally. If a future phase pulls RAG in-house,
+// re-add `previewFeatures = ["postgresqlExtensions"]` on the generator and
+// `extensions = [pgvector(map: "vector")]` on the datasource, then create a
+// migration that runs `CREATE EXTENSION IF NOT EXISTS vector;`.
+
+// ─────────────────────────────────────────────────────────
+// Identity & RBAC
+// ─────────────────────────────────────────────────────────
+
+enum RoleKey {
+  executive
+  facilities_mgr
+  curator
+  maintenance
+  governance
+  staff
+}
+
+enum ModuleKey {
+  home
+  knowledge
+  facilities
+  executive
+  incidents
+  security
+}
+
+model Role {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       RoleKey  @unique
+  name      String
+  createdAt DateTime @default(now())
+
+  users  User[]
+  access RoleModuleAccess[]
+
+  @@map("roles")
+}
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  email      String   @unique
+  name       String
+  roleId     String   @db.Uuid
+  mfaEnabled Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  role        Role                @relation(fields: [roleId], references: [id])
+  incidents   IncidentTask[]
+  approvals   POApproval[]
+  auditEvents AuditEvent[]
+  aiEvents    AiInteraction[]
+  maintenance MaintenanceRecord[]
+
+  @@index([roleId])
+  @@map("users")
+}
+
+model RoleModuleAccess {
+  roleId  String    @db.Uuid
+  module  ModuleKey
+  canRead Boolean   @default(false)
+  canAct  Boolean   @default(false)
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, module])
+  @@map("role_module_access")
+}
+
+// ─────────────────────────────────────────────────────────
+// Facilities
+// ─────────────────────────────────────────────────────────
+
+enum HealthStatus {
+  healthy
+  monitor
+  critical
+}
+
+enum SensorMetric {
+  dissolved_oxygen
+  pressure
+  temperature
+}
+
+model Habitat {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  area      String?
+  createdAt DateTime @default(now())
+
+  assets Asset[]
+
+  @@map("habitats")
+}
+
+model Asset {
+  id              String       @id @default(uuid()) @db.Uuid
+  code            String       @unique
+  name            String
+  category        String
+  habitatId       String       @db.Uuid
+  thresholds      Json
+  healthStatus    HealthStatus @default(healthy)
+  lastPmAt        DateTime?
+  pmComplianceDue DateTime?
+  createdAt       DateTime     @default(now())
+
+  habitat     Habitat             @relation(fields: [habitatId], references: [id])
+  readings    SensorReading[]
+  maintenance MaintenanceRecord[]
+  incidents   Incident[]
+
+  @@index([habitatId])
+  @@map("assets")
+}
+
+model SensorReading {
+  id         String       @id @default(uuid()) @db.Uuid
+  assetId    String       @db.Uuid
+  metric     SensorMetric
+  value      Float
+  unit       String
+  capturedAt DateTime     @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, capturedAt(sort: Desc)])
+  @@index([metric, capturedAt(sort: Desc)])
+  @@map("sensor_readings")
+}
+
+model MaintenanceRecord {
+  id            String   @id @default(uuid()) @db.Uuid
+  assetId       String   @db.Uuid
+  performedAt   DateTime
+  action        String
+  technicianId  String?  @db.Uuid
+  notes         String?
+  partsReplaced Json?
+
+  asset      Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  technician User? @relation(fields: [technicianId], references: [id])
+
+  @@index([assetId, performedAt(sort: Desc)])
+  @@map("maintenance_records")
+}
+
+// ─────────────────────────────────────────────────────────
+// Knowledge (RAG — vectors managed by OIP; local rows for cross-ref)
+// ─────────────────────────────────────────────────────────
+
+enum IndexStatus {
+  pending
+  indexing
+  ready
+  failed
+}
+
+model Document {
+  id            String      @id @default(uuid()) @db.Uuid
+  title         String
+  source        String
+  roleScope     RoleKey[]
+  indexedAt     DateTime?
+  indexStatus   IndexStatus @default(pending)
+  oipDocumentId String?     @unique
+  createdAt     DateTime    @default(now())
+
+  chunks DocumentChunk[]
+
+  @@map("documents")
+}
+
+model DocumentChunk {
+  id         String    @id @default(uuid()) @db.Uuid
+  documentId String    @db.Uuid
+  section    String
+  ordinal    Int
+  text       String
+  roleScope  RoleKey[]
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, ordinal])
+  @@map("document_chunks")
+}
+
+// ─────────────────────────────────────────────────────────
+// Incidents / Workflow
+// ─────────────────────────────────────────────────────────
+
+enum IncidentPriority {
+  low
+  medium
+  high
+  critical
+}
+
+enum IncidentStatus {
+  open
+  triaging
+  responding
+  resolved
+  closed
+}
+
+enum KanbanColumn {
+  todo
+  in_progress
+  review
+  done
+}
+
+model Incident {
+  id                 String           @id @default(uuid()) @db.Uuid
+  code               String           @unique
+  assetId            String           @db.Uuid
+  priority           IncidentPriority
+  status             IncidentStatus   @default(open)
+  openedAt           DateTime         @default(now())
+  closedAt           DateTime?
+  mttrMinutes        Int?
+  downtimeAvoidedHrs Float?
+  summary            String?
+
+  asset          Asset              @relation(fields: [assetId], references: [id])
+  tasks          IncidentTask[]
+  planSteps      ResponsePlanStep[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([status])
+  @@index([assetId, openedAt(sort: Desc)])
+  @@map("incidents")
+}
+
+model IncidentTask {
+  id          String       @id @default(uuid()) @db.Uuid
+  incidentId  String       @db.Uuid
+  title       String
+  ownerId     String?      @db.Uuid
+  column      KanbanColumn @default(todo)
+  order       Int          @default(0)
+  aiGenerated Boolean      @default(true)
+  completedAt DateTime?
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  owner    User?    @relation(fields: [ownerId], references: [id])
+
+  @@index([incidentId, column, order])
+  @@map("incident_tasks")
+}
+
+model ResponsePlanStep {
+  id          String   @id @default(uuid()) @db.Uuid
+  incidentId  String   @db.Uuid
+  ordinal     Int
+  text        String
+  citationIds Json     @default("[]")
+  generatedAt DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, ordinal])
+  @@map("response_plan_steps")
+}
+
+// ─────────────────────────────────────────────────────────
+// Procurement (ProcureChain adapter mirrors state here)
+// ─────────────────────────────────────────────────────────
+
+enum POStatus {
+  draft
+  pending_approval
+  approved
+  rejected
+  sent
+}
+
+model PurchaseOrder {
+  id              String   @id @default(uuid()) @db.Uuid
+  incidentId      String?  @db.Uuid
+  vendor          String
+  itemDescription String
+  qty             Int
+  unitCostCents   Int
+  status          POStatus @default(draft)
+  externalId      String?  @unique
+  createdAt       DateTime @default(now())
+
+  incident  Incident?    @relation(fields: [incidentId], references: [id])
+  approvals POApproval[]
+
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model POApproval {
+  id        String   @id @default(uuid()) @db.Uuid
+  poId      String   @db.Uuid
+  actorId   String   @db.Uuid
+  decision  String
+  decidedAt DateTime @default(now())
+
+  po    PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  actor User          @relation(fields: [actorId], references: [id])
+
+  @@index([poId])
+  @@map("po_approvals")
+}
+
+// ─────────────────────────────────────────────────────────
+// Governance — append-only audit log
+// ─────────────────────────────────────────────────────────
+
+model AuditEvent {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorId      String?  @db.Uuid
+  actorRole    RoleKey?
+  action       String
+  resourceType String
+  resourceId   String?
+  meta         Json     @default("{}")
+  occurredAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([occurredAt(sort: Desc)])
+  @@index([resourceType, resourceId])
+  @@index([actorId, occurredAt(sort: Desc)])
+  @@map("audit_events")
+}
+
+enum AiInteractionKind {
+  retrieval
+  answer
+  plan
+  summary
+}
+
+model AiInteraction {
+  id         String            @id @default(uuid()) @db.Uuid
+  kind       AiInteractionKind
+  promptHash String
+  model      String
+  tokensIn   Int?
+  tokensOut  Int?
+  citations  Json              @default("[]")
+  userId     String?           @db.Uuid
+  createdAt  DateTime          @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("ai_interactions")
+}
+
+// ─────────────────────────────────────────────────────────
+// Analytics (materialized snapshots)
+// ─────────────────────────────────────────────────────────
+
+model KpiSnapshot {
+  id         String   @id @default(uuid()) @db.Uuid
+  kpiKey     String
+  value      Float
+  unit       String?
+  capturedAt DateTime @default(now())
+
+  @@index([kpiKey, capturedAt(sort: Desc)])
+  @@map("kpi_snapshots")
+}

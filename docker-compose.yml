@@ -1,0 +1,26 @@
+# Local Postgres + pgvector for Zoo AI Ops Intelligence.
+# Use only if you don't already have a Postgres reachable at DATABASE_URL.
+#   docker compose up -d
+#   docker compose down -v   # wipe volume
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: zoo_ai_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: zoo
+      POSTGRES_PASSWORD: zoo
+      POSTGRES_DB: zoo_ai
+    ports:
+      - "5433:5432"
+    volumes:
+      - zoo_ai_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zoo -d zoo_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  zoo_ai_pgdata:

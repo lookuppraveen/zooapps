@@ -1,6 +1,42 @@
+# Dependencies
 node_modules/
-dist/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
 build/
+dist/
+next-env.d.ts
+
+# Testing
+coverage/
+playwright-report/
+playwright/.cache/
+test-results/
+
+# Env
+.env
+.env*.local
+.env.development
+.env.production
+
+# Editor
 .vscode/
+.idea/
+*.swp
+
+# OS
 .DS_Store
+Thumbs.db
+~$*
+
+# Logs
 *.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Prisma
+prisma/dev.db
+prisma/dev.db-journal
